@@ -1,0 +1,649 @@
+<title>Dokseo Library Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: logo header, then the game window, then controls + a "how books are organized" guide. One committed look taken from the Dokseo logo. */
+:root{
+  --blush:#f3e7e3; --cocoa:#6f584f; --cocoa-dk:#4a3a33; --cream:#fdf9ed; --tan:#bf9e8f;
+  --rose:#c88f99; --gold:#bea577; --cheek:#dba8a9; --ink:#3b2d27;
+  --pix:"Pixelify Sans", "Courier New", monospace;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{background:var(--blush);color:var(--ink)}
+body{font-family:var(--pix);font-size:16px;margin:0;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header img{width:72px;height:auto;image-rendering:pixelated}
+header h1{font-size:26px;margin:0;color:var(--cocoa);letter-spacing:1px}
+header p{margin:2px 0 0;color:var(--cocoa);opacity:.8}
+.tag{display:inline-block;background:var(--rose);color:var(--cream);padding:2px 8px;font-size:13px;margin-left:6px;vertical-align:middle}
+
+/* pixel frame */
+.pix{background:var(--cream);border:4px solid var(--cocoa);box-shadow:4px 4px 0 var(--cocoa-dk)}
+#game{position:relative;overflow:hidden;background:#2a1f1b;border:4px solid var(--cocoa);box-shadow:4px 4px 0 var(--cocoa-dk);touch-action:manipulation}
+#cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges;cursor:default}
+#labels{position:absolute;inset:0;pointer-events:none}
+.sign{position:absolute;transform:translate(-50%,-100%);font-size:12px;line-height:1;padding:3px 6px 4px;white-space:nowrap;
+  background:var(--cream);color:var(--cocoa-dk);border:2px solid var(--cocoa-dk);box-shadow:2px 2px 0 rgba(0,0,0,.35)}
+.sign.empty{background:transparent;color:var(--cream);border-style:dashed;border-color:var(--cream);box-shadow:none;opacity:.8}
+#tip{position:absolute;pointer-events:none;transform:translate(-50%,-100%);background:var(--cream);color:var(--ink);
+  border:3px solid var(--cocoa-dk);box-shadow:3px 3px 0 rgba(0,0,0,.4);padding:6px 9px;font-size:13px;min-width:150px;max-width:230px;z-index:5}
+#tip b{display:block;font-size:15px;color:var(--cocoa-dk)}
+#tip .bar{height:6px;background:var(--blush);border:1px solid var(--cocoa);margin-top:5px}
+#tip .bar i{display:block;height:100%;background:var(--rose)}
+#hint{position:absolute;left:8px;bottom:8px;font-size:13px;color:var(--cream);background:rgba(42,31,27,.75);padding:4px 8px;pointer-events:none}
+#toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--gold);color:var(--ink);border:3px solid var(--cocoa-dk);
+  padding:5px 12px;font-size:14px;transition:opacity .3s;opacity:0;pointer-events:none;white-space:nowrap}
+.touch{position:absolute;right:8px;bottom:8px;display:none;gap:6px}
+.touch button{width:46px;height:46px;font-size:20px}
+@media (hover:none){.touch{display:flex}}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.controls .grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.controls .lbl{color:var(--cocoa);font-size:14px;margin-right:2px}
+button,select{font-family:var(--pix);font-size:15px;cursor:pointer;color:var(--ink);background:var(--cream);
+  border:3px solid var(--cocoa);box-shadow:0 3px 0 var(--cocoa-dk);padding:5px 12px}
+button:hover{background:#fff}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--cocoa-dk)}
+button.on{background:var(--rose);color:var(--cream)}
+button.gold{background:var(--gold)}
+button:focus-visible,select:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{padding:14px 16px}
+.card h2{margin:0 0 10px;font-size:19px;color:var(--cocoa-dk)}
+.legend{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px 12px;align-items:center;font-size:15px}
+.legend canvas{image-rendering:pixelated;width:44px;height:44px;background:var(--blush);border:2px solid var(--tan)}
+.legend b{color:var(--cocoa-dk)}
+#detail .empty{color:var(--cocoa);opacity:.8}
+#detail .row{display:flex;justify-content:space-between;border-bottom:2px dotted var(--tan);padding:5px 0;font-size:15px;gap:10px}
+#detail .row span:last-child{color:var(--cocoa-dk);text-align:right}
+#detail .pbar{height:12px;border:2px solid var(--cocoa);background:var(--blush);margin:10px 0}
+#detail .pbar i{display:block;height:100%;background:var(--rose)}
+#detail .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.small{font-size:13px;color:var(--cocoa)}
+
+/* reader preview */
+#reader{position:fixed;inset:0;background:rgba(42,31,27,.82);display:flex;align-items:center;justify-content:center;z-index:20;
+  padding:16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px))}
+#reader[hidden]{display:none!important}
+.rbox{width:min(980px,100%);display:flex;flex-direction:column;gap:10px}
+.rtop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--cream)}
+.rtop .ttl{flex:1;min-width:0;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.book{position:relative;background:#7a4a3a;border:4px solid var(--cocoa-dk);padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:0;box-shadow:6px 6px 0 rgba(0,0,0,.4)}
+.page{--pg:#fffdf6;--tx:#2b221d;background:var(--pg);color:var(--tx);padding:26px 28px 40px;min-height:380px;font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:1.6;position:relative;transition:background .3s,color .3s}
+.page.l{box-shadow:inset -14px 0 18px -14px rgba(0,0,0,.35)}
+.page.r{box-shadow:inset 14px 0 18px -14px rgba(0,0,0,.35)}
+.page h3{font-family:var(--pix);margin:0 0 12px;font-size:20px}
+.page .pn{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:12px;opacity:.6}
+.page mark{background:rgba(242,193,78,.55);color:inherit;padding:0 1px}
+.page mark.pink{background:rgba(200,143,153,.5)}
+.book.sepia .page{--pg:#f1e1c2;--tx:#4a3523}
+.book.night .page{--pg:#1f1c22;--tx:#d9d2c5}
+.book.night .page mark{background:rgba(242,193,78,.3)}
+.book.purple .page{--pg:#2a2140;--tx:#ece3ff}
+.book.purple .page mark{background:rgba(180,140,255,.35)}
+.ribbon{position:absolute;top:-4px;right:22px;width:14px;height:44px;background:var(--rose);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
+#mini{position:absolute;right:14px;bottom:8px;width:144px;height:96px;image-rendering:pixelated}
+.qnote{font-family:var(--pix);font-size:12px;background:var(--cheek);color:var(--ink);padding:2px 6px;display:inline-block;margin-top:4px}
+.rbot{display:flex;gap:10px;align-items:center;color:var(--cream);flex-wrap:wrap;font-size:14px}
+.rbot .prog{flex:1;min-width:120px;height:10px;background:rgba(253,249,237,.25);border:2px solid var(--cream)}
+.rbot .prog i{display:block;height:100%;background:var(--rose)}
+@media (max-width:640px){.book{grid-template-columns:1fr}.page.r{display:none}.page{min-height:300px;padding:20px 18px 40px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <img src="data:image/png;base64,LOGO_B64" alt="Dokseo logo">
+    <div>
+      <h1>How your books live in Dokseo <span class="tag">prototype</span></h1>
+      <p>Walk with ← → (or A / D). Books peek out as you pass. Hover or click a book. Press E to jump in.</p>
+    </div>
+  </header>
+
+  <div id="game">
+    <canvas id="cv"></canvas>
+    <div id="labels"></div>
+    <div id="tip" hidden></div>
+    <div id="hint">← → walk · ↑ ↓ change row · E open</div>
+    <div id="toast"></div>
+    <div class="touch"><button id="tl" aria-label="Walk left">◀</button><button id="tr" aria-label="Walk right">▶</button></div>
+  </div>
+
+  <div class="controls">
+    <div class="grp"><span class="lbl">Show:</span>
+      <button class="on" data-f="all">All</button><button data-f="reading">Reading</button><button data-f="finished">Finished</button><button data-f="new">Not started</button>
+    </div>
+    <div class="grp"><span class="lbl">Sort each shelf:</span>
+      <select id="sort" aria-label="Sort books on each shelf"><option value="added">Recently added</option><option value="title">Title A–Z</option><option value="progress">Progress</option><option value="color">Spine color</option></select>
+    </div>
+    <button class="gold" id="add">+ Add a sample book</button>
+  </div>
+
+  <div class="grid">
+    <section class="card pix" id="detail">
+      <h2>Selected book</h2>
+      <p class="empty">Hover or click a book on a shelf to see its card here.</p>
+    </section>
+    <section class="card pix">
+      <h2>How the library is organized</h2>
+      <div class="legend" id="legend"></div>
+    </section>
+  </div>
+  <p class="small">Prototype with example books. In the real app, every book is a PDF you add, and shelf styles like Purple Galaxy, Spellbook and Red Castle come from the shop.</p>
+</div>
+
+<div id="reader" hidden>
+  <div class="rbox">
+    <div class="rtop">
+      <button id="rclose">← Library</button>
+      <span class="ttl" id="rtitle"></span>
+      <button data-th="day" class="on">Day</button><button data-th="sepia">Sepia</button><button data-th="night">Night</button><button data-th="purple">Purple Night</button>
+    </div>
+    <div class="book" id="rbook">
+      <div class="page l">
+        <h3>Chapter 1</h3>
+        <p><mark>It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.</mark><br><span class="qnote">❝ saved to Quote Journal</span></p>
+        <p>However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered as the rightful property of some one or other of their daughters.</p>
+        <div class="pn">12</div>
+      </div>
+      <div class="page r">
+        <div class="ribbon" title="Bookmarked page"></div>
+        <p>“My dear Mr. Bennet,” said his lady to him one day, “have you heard that Netherfield Park is let at last?”</p>
+        <p>Mr. Bennet replied that he had not.</p>
+        <p>“But it is,” returned she; “for Mrs. Long has just been here, and she told me all about it.”</p>
+        <p>Mr. Bennet made no answer.</p>
+        <p><mark class="pink">“Do you not want to know who has taken it?”</mark> cried his wife impatiently.</p>
+        <div class="pn">13</div>
+        <canvas id="mini" width="48" height="32" aria-label="Mini character reading with the cat"></canvas>
+      </div>
+    </div>
+    <div class="rbot">
+      <span>⏱ <span id="rtime">00:00</span> this session</span>
+      <div class="prog"><i id="rprog"></i></div>
+      <span id="rleft"></span>
+    </div>
+    <div class="small" style="color:var(--cream)">Reader preview: your PDF pages appear here with highlights, quotes, a bookmark ribbon, and a mini you reading in the corner (with your cat).</div>
+  </div>
+</div>
+
+<script>
+(()=>{
+'use strict';
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d'), game=document.getElementById('game');
+const labels=document.getElementById('labels'), tip=document.getElementById('tip'), toastEl=document.getElementById('toast');
+const H=190, WW=780, GY=164; // logical height, world width, ground y
+let W=420, scale=2, camX=0;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function shade(hex,amt){let n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;
+  const f=v=>clamp(Math.round(amt<0?v*(1+amt):v+(255-v)*amt),0,255);return '#'+[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,'0')).join('');}
+
+/* ---------- data ---------- */
+const WOODS={
+  oak:{o:'#3b2a22',d:'#7a4b2c',m:'#a8693a',l:'#cf9258',b:'#4a3020',name:'Oak'},
+  spell:{o:'#17111f',d:'#2e2340',m:'#43345c',l:'#6a5590',b:'#140e1c',star:'#e8c66a',name:'Spellbook (shop)'},
+  birch:{o:'#5a4636',d:'#b3936a',m:'#dcc49c',l:'#f2e4c6',b:'#7d6448',name:'Birch'},
+  galaxy:{o:'#1d1233',d:'#4b2d7a',m:'#6c43a8',l:'#9b74d6',b:'#150c28',star:'#f3e7ff',name:'Purple Galaxy (shop)'},
+  pine:{o:'#4a3322',d:'#9a6a3a',m:'#c9945a',l:'#e8bb80',b:'#5e3e22',name:'Pine'},
+  red:{o:'#3a1414',d:'#a3222a',m:'#d23a3f',l:'#f4f0ec',b:'#43171a',stripe:true,name:'Red Castle (shop)'}
+};
+const PAL={
+  base:['#8e3b46','#2f4b7c','#3f7a4f','#c7793b','#6b4a8f','#c9a227','#2f7f86','#b85c7a','#5b6e2f','#7a2e2e','#3d5a99','#a0522d'],
+  purple:['#6c43a8','#8f5fd1','#4b2d7a','#b48cf0','#d8c2ff','#5a3c99','#c88f99','#3d2a66'],
+  wizard:['#7a1f24','#c9a227','#1f5a3a','#2f3f7a','#5a3c2a','#a3222a','#2b2b3a','#bea577'],
+  red:['#d23a3f','#f4f0ec','#a3222a','#e9e2da','#7a1416','#c22f35'],
+  soft:['#c88f99','#bea577','#8fb3a8','#dba8a9','#9b8ab8','#e0b48a','#7f9fbf','#b9c98f']
+};
+const SHELVES=[
+  {id:'nov',x:104,name:'Novels',wood:'oak',pal:'base'},
+  {id:'wiz',x:164,name:'Fantasy & Wizards',wood:'spell',pal:'wizard'},
+  {id:'self',x:224,name:'Self-help',wood:'birch',pal:'soft'},
+  {id:'kor',x:446,name:'Korean Lit 💜',wood:'galaxy',pal:'purple'},
+  {id:'study',x:506,name:'Study',wood:'pine',pal:'base'},
+  {id:'foot',x:566,name:'Football ❤️🤍',wood:'red',pal:'red'},
+];
+const EMPTY_SPOTS=[{x:626}];
+const SAMPLE={
+  nov:[['Pride and Prejudice','Jane Austen',432,1],['Little Women','Louisa May Alcott',512,.35],['Jane Eyre','Charlotte Brontë',532,.62],['The Great Gatsby','F. Scott Fitzgerald',208,1],['Anne of Green Gables','L. M. Montgomery',320,0],['Wuthering Heights','Emily Brontë',416,0],['Emma','Jane Austen',474,.12],['Persuasion','Jane Austen',272,1],['Middlemarch','George Eliot',880,0],['Frankenstein','Mary Shelley',280,1],['Great Expectations','Charles Dickens',544,0],['Sense and Sensibility','Jane Austen',409,.4],['North and South','Elizabeth Gaskell',521,0],['Moby-Dick','Herman Melville',635,0],['Dracula','Bram Stoker',418,1],['The Count of Monte Cristo','Alexandre Dumas',1276,.08],['Les Misérables','Victor Hugo',1463,0],['A Little Princess','Frances H. Burnett',260,1],['Heidi','Johanna Spyri',288,0]],
+  wiz:[['Alice in Wonderland','Lewis Carroll',192,1],['The Wizard of Oz','L. Frank Baum',240,1],['Peter Pan','J. M. Barrie',224,.5],['Spells & Potions 101','Sample book',300,0],['The Owl Post','Sample book',180,.2],['A Wizard\'s First Year','Sample book',320,.8],['The Secret Garden','Frances H. Burnett',331,0],['Dragons of the North','Sample book',410,0],['The Hidden Platform','Sample book',290,0],['Potion Club','Sample book',220,1],['Moonlit Broomsticks','Sample book',260,0],['Through the Looking-Glass','Lewis Carroll',208,.3],['The Jungle Book','Rudyard Kipling',277,0],['Grimm\'s Fairy Tales','Brothers Grimm',540,.2],['Arabian Nights','Anonymous',420,0],['The Phoenix Feather','Sample book',300,0],['The Talking Hat','Sample book',150,1],['House Colors','Sample book',180,0],['Starlight Spellbook','Sample book',340,0]],
+  self:[['Tiny Daily Habits','Sample book',256,.45],['Deep Focus','Sample book',296,0],['The Calm Mind','Sample book',212,1],['Morning Pages','Sample book',190,0],['Kind to Yourself','Sample book',240,.1],['Meditations','Marcus Aurelius',254,.3],['Slow Mornings','Sample book',200,0],['The Art of Rest','Sample book',230,1],['Journal Prompts','Sample book',120,0],['Little Wins','Sample book',190,0],['Breathe','Sample book',160,.6]],
+  kor:[['The Vegetarian','Han Kang',192,1],['Almond','Sohn Won-pyung',264,.7],['Kim Jiyoung, Born 1982','Cho Nam-joo',176,1],['Welcome to the Hyunam-dong Bookshop','Hwang Bo-reum',320,.3],['Please Look After Mom','Shin Kyung-sook',256,0],['The Disaster Tourist','Yun Ko-eun',192,0],['Pachinko','Min Jin Lee',496,.15],['Human Acts','Han Kang',224,0],['Korean Night Bus Stories','Sample book',210,0],['The Hen Who Dreamed She Could Fly','Sun-mi Hwang',144,1],['Love in the Big City','Sang Young Park',240,.5],['Our Twisted Hero','Yi Munyol',120,0],['Untold Night and Day','Bae Suah',160,0],['Spring Day Poems','Sample book',120,1],['Seoul Rooftop Diaries','Sample book',230,0],['Seven Purple Stars','Sample book',190,.4],['Ramyeon at Midnight','Sample book',150,0],['First Snow in Namsan','Sample book',210,0],['Convenience Store Stories','Sample book',240,0],['Hangul Made Easy','Study notes',100,.9],['Hanbok and Hanok','Sample book',180,0],['Mirror Dance Practice','Sample book',140,0]],
+  study:[['Korean for Beginners','Study notes',150,.55],['Biology Notes','Study notes',220,.8],['English Grammar','Study notes',180,0],['History of Morocco','Study notes',300,.25],['Math Practice','Study notes',140,0],['Art History','Study notes',260,0],['Chemistry 1','Study notes',200,.3],['French Basics','Study notes',160,0],['Exam Prep','Study notes',120,.2],['Physics Notes','Study notes',190,0],['Geography','Study notes',170,0],['Essay Writing','Study notes',130,.6]],
+  foot:[['A Century in Red','Sample book',288,.4],['Football Tactics','Sample book',240,0],['The Beautiful Game','Sample book',310,1],['Ultras: Songs of the Stands','Sample book',200,0],['Moroccan Football Legends','Sample book',260,.6],['Derby Day in Casablanca','Sample book',200,1],['Red and White Forever','Sample book',180,0],['The Goalkeeper\'s Notebook','Sample book',150,0],['World Cup Stories','Sample book',320,.3],['Tifo: Art of the Stands','Sample book',140,0],['Africa\'s Champions','Sample book',260,0]]
+};
+const EXTRA=[['Our Beloved Summer Notes','Sample book',180],['Spring Day Poems','Sample book',120],['The Little Prince','Antoine de Saint-Exupéry',96],['Treasure Island','R. L. Stevenson',304],['Hanok Houses','Sample book',150],['Black Beauty','Anna Sewell',255],['Moonlight Ramyeon Café','Sample book',220]];
+let books=[], seq=0;
+for(const sh of SHELVES){(SAMPLE[sh.id]||[]).forEach(([t,a,p,pr])=>books.push(mkBook(t,a,p,pr,sh)));}
+function mkBook(t,a,pages,prog,sh){
+  const h=hash(t), pal=PAL[sh.pal];
+  const status=prog>=1?'finished':prog>0?'reading':'new';
+  return {id:'b'+(seq++),title:t,author:a,pages,progress:prog,status,shelf:sh.id,added:seq,
+    color:pal[h%pal.length],h:11+(h>>8)%5,minutes:Math.round(pages*prog*1.4),quotes:prog>0?(h>>4)%6:0,
+    slot:0,dx:null,pull:0,hidden:false};
+}
+const NUMCOL=9, CAP=27;
+let sortMode='added', filter='all';
+function layout(){
+  for(const sh of SHELVES){
+    const list=books.filter(b=>b.shelf===sh.id);
+    const cmp={added:(a,b)=>a.added-b.added,title:(a,b)=>a.title.localeCompare(b.title),progress:(a,b)=>b.progress-a.progress,
+      color:(a,b)=>hue(a.color)-hue(b.color)}[sortMode];
+    list.sort(cmp).forEach((b,i)=>b.slot=i);
+  }
+}
+function hue(hex){const n=parseInt(hex.slice(1),16),r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+  if(mx===mn)return 400+mx;let h=mx===r?(g-b)/(mx-mn):mx===g?2+(b-r)/(mx-mn):4+(r-g)/(mx-mn);return ((h*60)+360)%360;}
+layout();
+
+/* ---------- geometry ---------- */
+const SW=44, SH=64;
+function shelfOf(id){return SHELVES.find(s=>s.id===id);}
+function slotPos(sh,slot){ // top-left of a book slot (bottom aligned)
+  const row=Math.floor(slot/NUMCOL), col=slot%NUMCOL;
+  const left=sh.x-22, top=GY-SH;
+  return {x:left+4+col*4, yBottom:top+4+row*19+16, row, col};
+}
+function bookRect(b){const sh=shelfOf(b.shelf),p=slotPos(sh,b.slot);
+  const x=b.dx!=null?b.dx:p.x;return {x, y:p.yBottom-b.h, w:4, h:b.h, row:p.row, col:p.col};}
+
+/* ---------- character sprite ---------- */
+const LOOK={hair:'#5a3825',skin:'#f6d3b3',outfit:'#9b74d6',skirt:'#6c43a8',shoe:'#4a3a33',girl:true,glasses:false};
+const OUT='#3b2d27';
+function charFrame(frame,hold){
+  const c=document.createElement('canvas');c.width=18;c.height=28;const g=c.getContext('2d');
+  const P=(col,x,y,w=1,h=1)=>{g.fillStyle=col;g.fillRect(x+1,y+1,w,h);};
+  const b=(frame===1||frame===3)?1:0, L=LOOK;
+  P(L.hair,3,3+b,3,10); // long hair back
+  // legs
+  if(frame===1){P(L.skin,5,19,2,3);P(L.skin,9,19,2,3);P(L.shoe,4,22,3,1);P(L.shoe,9,22,3,1);}
+  else if(frame===3){P(L.skin,6,19,2,3);P(L.skin,8,19,2,3);P(L.shoe,6,22,2,1);P(L.shoe,8,22,3,1);}
+  else {P(L.skin,6,19,2,3);P(L.skin,8,19,2,3);P(L.shoe,6,22,2,1);P(L.shoe,8,22,3,1);}
+  P(L.skirt,4,15+b,8,4-b); P(shade(L.skirt,-.25),4,18,8,1);
+  P(L.outfit,5,10+b,6,6); P(shade(L.outfit,.3),6,11+b,1,3);
+  // head
+  P(L.skin,4,2+b,8,8);
+  P(L.hair,4,1+b,8,3); P(L.hair,4,4+b,2,3); P(L.hair,11,3+b,1,2);
+  P(OUT,8,6+b,1,2); P(OUT,10,6+b,1,2);
+  P('#e8a0a8',7,8+b); P('#e8a0a8',11,8+b);
+  P('#c88f99',3,2+b,2,2); // bow
+  if(hold){P(L.outfit,9,4+b,2,7);P(L.skin,9,3+b,2,1);}
+  else{const sw=frame===1?1:frame===3?-1:0;P(shade(L.outfit,-.15),7+sw,11+b,2,4);P(L.skin,7+sw,15+b,2,1);}
+  // outline
+  const im=g.getImageData(0,0,18,28),d=im.data,out=new Uint8ClampedArray(d);
+  for(let y=0;y<28;y++)for(let x=0;x<18;x++){const i=(y*18+x)*4;if(d[i+3])continue;
+    const n=[[1,0],[-1,0],[0,1],[0,-1]].some(([ox,oy])=>{const X=x+ox,Y=y+oy;return X>=0&&Y>=0&&X<18&&Y<28&&d[(Y*18+X)*4+3];});
+    if(n){out[i]=0x3b;out[i+1]=0x2d;out[i+2]=0x27;out[i+3]=255;}}
+  g.putImageData(new ImageData(out,18,28),0,0);return c;
+}
+const FR=[0,1,2,3].map(f=>charFrame(f,false)), HOLD=[charFrame(0,true),charFrame(1,true),charFrame(0,true),charFrame(3,true)];
+
+/* ---------- player ---------- */
+const pl={x:150,face:1,walkT:0,moving:false,row:1,target:null,carry:null,onArrive:null,jump:0,vy:0,hide:false,scale:1};
+const keys={};
+let cut=null; // cutscene
+addEventListener('keydown',e=>{
+  if(!readerEl.hidden){ if(e.key==='Escape')closeReader(); return; }
+  const k=e.key.toLowerCase();
+  if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k)&&inView())e.preventDefault();
+  keys[k]=true;
+  if(cut)return;
+  if(k==='arrowup'||k==='w'){pl.row=clamp(pl.row-1,0,2);}
+  if(k==='arrowdown'||k==='s'){pl.row=clamp(pl.row+1,0,2);}
+  if(k===' '&&pl.jump===0){pl.vy=-120;pl.jump=0.01;}
+  if(k==='e'||k==='enter'){const b=selected();if(b)openBook(b);}
+});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+function inView(){const r=game.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight;}
+const hold={l:false,r:false};
+for(const [id,side] of [['tl','l'],['tr','r']]){const btn=document.getElementById(id);
+  btn.addEventListener('pointerdown',e=>{e.preventDefault();hold[side]=true;});
+  for(const ev of ['pointerup','pointerleave','pointercancel'])btn.addEventListener(ev,()=>hold[side]=false);}
+
+/* ---------- mouse ---------- */
+let mouse=null, hoverBook=null, picked=null;
+function toWorld(e){const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)/scale+camX,y:(e.clientY-r.top)/scale};}
+cv.addEventListener('mousemove',e=>{mouse=toWorld(e);});
+cv.addEventListener('mouseleave',()=>{mouse=null;});
+cv.addEventListener('click',e=>{
+  if(cut)return; const m=toWorld(e); const b=bookAt(m.x,m.y);
+  if(b){picked=b;showDetail(b);walkTo(shelfOf(b.shelf).x,()=>{});return;}
+  const sp=EMPTY_SPOTS.find(s=>Math.abs(m.x-s.x)<22&&m.y>GY-SH&&m.y<GY);
+  if(sp){toast('Empty spot: build a new shelf here (pick a category + style)');return;}
+  walkTo(clamp(m.x,24,WW-24));
+});
+function bookAt(x,y){for(const b of books){if(b.hidden)continue;const r=bookRect(b);const lift=Math.round(b.pull*3);
+  if(x>=r.x-.5&&x<r.x+r.w+.5&&y>=r.y-lift-1&&y<=r.y+r.h)return b;}return null;}
+function walkTo(x,cb){pl.target=x;pl.onArrive=cb||null;}
+
+/* ---------- selection near shelf ---------- */
+function nearShelf(){return SHELVES.find(s=>Math.abs(pl.x-s.x)<22);}
+function selected(){
+  if(hoverBook)return hoverBook;
+  const sh=nearShelf(); if(!sh)return null;
+  const list=books.filter(b=>b.shelf===sh.id&&!b.hidden); if(!list.length)return null;
+  const col=clamp(Math.floor((pl.x-(sh.x-18))/4),0,NUMCOL-1);
+  let best=null,bd=1e9;
+  for(const b of list){const r=Math.floor(b.slot/NUMCOL),c=b.slot%NUMCOL;const d=Math.abs(c-col)+(r===pl.row?0:20)*Math.abs(r-pl.row);if(d<bd){bd=d;best=b;}}
+  return best;
+}
+
+/* ---------- drawing helpers ---------- */
+function R(c,x,y,w,h){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h);}
+let bg=null;
+function buildBg(){
+  bg=document.createElement('canvas');bg.width=WW;bg.height=H;const g=bg.getContext('2d');
+  const r=(c,x,y,w,h)=>{g.fillStyle=c;g.fillRect(x,y,w,h);};
+  r('#4a3a33',0,0,WW,H);
+  // wallpaper
+  r('#8a6a60',0,10,WW,GY-10);
+  for(let y=14;y<GY-30;y+=10)for(let x=((y/10)%2)*6;x<WW;x+=12){r('#9a7a6f',x+3,y,2,2);r('#7d5f56',x+3,y+2,2,1);}
+  // wainscot
+  r('#6f584f',0,GY-30,WW,30);r('#8a7065',0,GY-30,WW,2);r('#5a463f',0,GY-3,WW,3);
+  for(let x=6;x<WW;x+=26){r('#624d45',x,GY-25,20,19);r('#7d655b',x,GY-25,20,1);}
+  // ceiling beam
+  r('#3b2d27',0,0,WW,12);r('#5a463f',0,10,WW,2);for(let x=0;x<WW;x+=60)r('#2e231f',x,0,4,12);
+  // pillars
+  for(const x of [0,262,380,656,WW-10]){r('#5a463f',x,10,10,GY-10);r('#7d655b',x+1,10,2,GY-10);r('#3b2d27',x+8,10,2,GY-10);}
+  // floor
+  r('#a07a5a',0,GY,WW,H-GY);r('#c09a74',0,GY,WW,2);
+  for(let y=GY+6;y<H;y+=7){r('#7d5a40',0,y,WW,1);for(let x=(y*7)%40;x<WW;x+=40)r('#7d5a40',x,y-6,1,6);}
+  // door
+  r('#3b2d27',22,GY-56,30,56);r('#7a4b2c',25,GY-53,24,53);r('#a8693a',27,GY-51,9,49);r('#a8693a',38,GY-51,9,49);r('#bea577',44,GY-28,2,3);
+  r('#3b2d27',19,GY-58,36,3);
+  // window
+  r('#3b2d27',286,32,44,52);r('#2b3a5a',290,36,36,44);r('#bfa38a',306,36,4,44);r('#bfa38a',290,56,36,3);r('#6f584f',283,84,50,5);
+  // armchair
+  const ax=338;r('#3b2d27',ax-1,GY-31,30,31);r('#c88f99',ax,GY-30,28,22);r('#dba8a9',ax+2,GY-28,24,3);r('#a8707b',ax,GY-12,28,4);
+  r('#b47c87',ax-3,GY-20,6,14);r('#b47c87',ax+25,GY-20,6,14);r('#3b2d27',ax+1,GY-6,3,6);r('#3b2d27',ax+24,GY-6,3,6);
+  // want-to-read table
+  r('#3b2d27',354+30-1,GY-23,34,4);r('#a8693a',384,GY-22,32,2);r('#7a4b2c',386,GY-20,3,20);r('#7a4b2c',411,GY-20,3,20);
+  // fireplace
+  const fx=690;r('#3b2d27',fx-31,GY-62,62,62);r('#8a8290',fx-30,GY-61,60,61);
+  for(let y=GY-58;y<GY;y+=6)for(let x=fx-30+((y/6)%2)*5;x<fx+28;x+=10)r('#76707e',x,y,9,1);
+  r('#1d1418',fx-18,GY-40,36,40);r('#6f584f',fx-34,GY-66,68,6);r('#8a7065',fx-34,GY-66,68,2);
+  // fish bowl for cat
+  r('#3b2d27',730,GY-5,14,5);r('#c88f99',731,GY-4,12,3);
+  // plant
+  r('#3b2d27',259-14,GY-12,12,12);r('#bf9e8f',260-14,GY-11,10,10);
+  for(const [x,y] of [[248,GY-22],[252,GY-26],[244,GY-18],[255,GY-19],[250,GY-16]])r('#5f8a4f',x,y,4,6);
+}
+function drawShelf(sh,t){
+  const w=WOODS[sh.wood], L=sh.x-22, T=GY-SH;
+  R(w.o,L-1,T-1,SW+2,SH-2); // outline
+  R(w.m,L,T,SW,SH-4); R(w.l,L,T,SW,1);
+  R(w.o,L-2,T-2,SW+4,1); // cap
+  for(let r=0;r<3;r++){const y=T+4+r*19;R(w.b,L+3,y,SW-6,16);R(shade(w.b,-.3),L+3,y,SW-6,2);
+    R(w.l,L+3,y+16,SW-6,1);R(w.d,L+3,y+18,SW-6,1);}
+  R(w.d,L,T,1,SH-4);R(w.d,L+SW-1,T,1,SH-4);
+  R(w.o,L+2,GY-4,5,4);R(w.o,L+SW-7,GY-4,5,4); // legs
+  if(w.stripe){for(let y=T;y<GY-4;y+=6)R('#f4f0ec',L,y,3,3),R('#f4f0ec',L+SW-3,y+3,3,3);}
+  if(w.star){for(let i=0;i<5;i++){const s=hash(sh.id+i);const on=Math.sin(t*2+i*1.7)>0.2;
+      if(on)R(w.star,L+1+((s%(SW-2))),T+1+((s>>5)%2)*0,1,1);}
+    const tw=Math.sin(t*3)>0?w.star:w.l;R(tw,L+SW/2,T-1,1,1);}
+  if(sh.wood==='galaxy'){ // lightstick top deco
+    R('#3b2d27',L+34,T-12,3,10);R('#ece3ff',L+33,T-17,5,5);const gl=(Math.sin(t*4)+1)/2;
+    ctx.globalAlpha=.35+gl*.4;R('#b48cf0',L+32,T-18,7,7);ctx.globalAlpha=1;
+    R('#c88f99',L+6,T-6,4,4);R('#c88f99',L+5,T-5,6,2); // purple-ish heart
+  }
+  if(sh.wood==='spell'){R('#3b2d27',L+6,T-10,9,8);R('#43345c',L+7,T-9,7,7);R('#2e2340',L+9,T-15,3,6);R('#bea577',L+6,T-4,9,1); // wizard hat
+    R('#e8c66a',L+32,T-8,6,6);R('#f6e7b0',L+33,T-7,2,2);} // golden ball
+  if(sh.wood==='red'){R('#f4f0ec',L+30,T-8,8,8);R('#3b2d27',L+32,T-6,2,2);R('#3b2d27',L+35,T-4,2,2);} // football
+  if(sh.wood==='birch'){R('#bf9e8f',L+6,T-6,7,6);R('#5f8a4f',L+7,T-11,2,5);R('#5f8a4f',L+10,T-12,2,6);}
+}
+function drawBook(b,alpha){
+  const r=bookRect(b), lift=Math.round(b.pull*3), big=b.pull>.5;
+  const x=Math.round(r.x)-(big?1:0), y=r.y-lift, w=big?6:4, h=r.h+(big?1:0);
+  ctx.globalAlpha=alpha;
+  if(lift>0){ctx.globalAlpha=alpha*.45;R('#000',x+1,r.y+r.h-1,w,1);ctx.globalAlpha=alpha;}
+  R(shade(b.color,-.35),x,y,w,h); R(b.color,x+1,y,w-2,h); R(shade(b.color,.25),x+w-2,y,1,h);
+  const band=shade(b.color,.55);R(band,x+1,y+2,w-2,1);R(band,x+1,y+h-3,w-2,1);
+  if(b.status==='finished')R('#f2c94e',x+1,y,w-2,1);
+  if(b.status==='reading'){R('#c88f99',x+w-2,y+h,1,3);R('#a8707b',x+w-2,y+h+2,1,1);} // ribbon tail
+  if(big){ctx.globalAlpha=alpha*.8;R('#fdf9ed',x,y-1,w,1);ctx.globalAlpha=alpha;}
+  ctx.globalAlpha=1;
+}
+function drawCat(t){
+  const x=716,y=GY;const br=Math.sin(t*2)>0?1:0;
+  R('#3b2d27',x-1,y-8-br,16,8+br);R('#e0a060',x,y-7-br,14,7+br);R('#f2c08a',x+2,y-5-br,6,4);
+  R('#3b2d27',x+10,y-10-br,6,5);R('#e0a060',x+11,y-9-br,4,4);R('#3b2d27',x+11,y-11-br,1,1);R('#3b2d27',x+14,y-11-br,1,1);
+  R('#3b2d27',x+12,y-7-br,1,1);R('#3b2d27',x+14,y-7-br,1,1);R('#9b74d6',x+10,y-5-br,5,1); // purple collar
+  R('#e0a060',x-3,y-3,4,2);
+  const zt=(t%3)/3;ctx.globalAlpha=1-zt;ctx.fillStyle='#fdf9ed';ctx.font='7px "Pixelify Sans"';ctx.fillText('z',x+16+zt*4,y-14-zt*10);ctx.globalAlpha=1;
+}
+function drawFire(t){
+  const fx=690,base=GY-2;
+  for(let i=0;i<9;i++){const fl=Math.sin(t*9+i*1.9)*3+Math.sin(t*5+i)*2;const hgt=10+((i*7)%9)+fl;
+    R('#e25a2a',fx-14+i*3.2,base-hgt,3,hgt);R('#f2a33a',fx-13+i*3.2,base-hgt*.7,2,hgt*.7);R('#fbe39a',fx-13+i*3.2,base-hgt*.35,1,hgt*.35);}
+  R('#5a3825',fx-14,base-2,28,3);
+}
+const rain=Array.from({length:22},(_,i)=>({x:Math.random()*36,y:Math.random()*44,s:40+Math.random()*30}));
+function drawRain(dt){for(const d of rain){d.y+=d.s*dt;if(d.y>44){d.y=-3;d.x=Math.random()*36;}
+  if(d.x<16||d.x>20)R('#8fb3d9',290+d.x,36+Math.max(0,d.y),1,Math.min(3,44-d.y));}}
+function drawPile(){ // want-to-read pile on the table
+  const cols=['#c88f99','#7f9fbf','#bea577','#9b74d6','#8fb3a8'];
+  cols.forEach((c,i)=>{const w=20-(i%2)*3;R('#3b2d27',388+i%2*2-1,GY-27-i*4,w+2,5);R(c,388+i%2*2,GY-26-i*4,w,3);R(shade(c,.5),388+i%2*2+2,GY-25-i*4,w-4,1);});
+}
+let dust=Array.from({length:26},()=>({x:Math.random()*WW,y:20+Math.random()*130,v:2+Math.random()*4,p:Math.random()*6}));
+
+/* ---------- labels ---------- */
+const signEls={};
+for(const sh of SHELVES){const d=document.createElement('div');d.className='sign';d.textContent=sh.name;labels.appendChild(d);signEls[sh.id]=d;}
+for(const sp of EMPTY_SPOTS){const d=document.createElement('div');d.className='sign empty';d.textContent='+ new shelf';labels.appendChild(d);sp.el=d;}
+const pileEl=document.createElement('div');pileEl.className='sign';pileEl.textContent='Want to read';labels.appendChild(pileEl);
+function placeLabels(){
+  for(const sh of SHELVES){const el=signEls[sh.id];const sx=(sh.x-camX)*scale, sy=(GY-SH-(sh.wood==='galaxy'||sh.wood==='spell'?20:10))*scale;
+    el.style.left=sx+'px';el.style.top=sy+'px';el.style.display=(sx<-80||sx>W*scale+80)?'none':'';}
+  for(const sp of EMPTY_SPOTS){sp.el.style.left=(sp.x-camX)*scale+'px';sp.el.style.top=(GY-SH-4)*scale+'px';}
+  pileEl.style.left=(400-camX)*scale+'px';pileEl.style.top=(GY-50)*scale+'px';
+}
+
+/* ---------- tooltip & detail ---------- */
+let tipFor=null;
+function updateTip(b){
+  if(!b||cut){tip.hidden=true;tipFor=null;return;}
+  const r=bookRect(b);const sx=(r.x+2-camX)*scale, sy=(r.y-6)*scale;
+  if(tipFor!==b){tipFor=b;const st=b.status==='finished'?'★ Finished':b.status==='reading'?`Reading · page ${Math.round(b.pages*b.progress)} of ${b.pages}`:`Not started · ${b.pages} pages`;
+    tip.innerHTML=`<b></b><div class="a"></div><div>${st}</div><div class="bar"><i style="width:${Math.round(b.progress*100)}%"></i></div>`;
+    tip.querySelector('b').textContent=b.title;tip.querySelector('.a').textContent=b.author;}
+  tip.hidden=false;
+  const tw=tip.offsetWidth, gw=game.clientWidth;
+  tip.style.left=clamp(sx,tw/2+4,gw-tw/2-4)+'px';tip.style.top=Math.max(tip.offsetHeight+4,sy)+'px';
+}
+const detail=document.getElementById('detail');
+let detailFor=null;
+function showDetail(b){
+  if(detailFor===b)return;detailFor=b;
+  const sh=shelfOf(b.shelf), pos=slotPos(sh,b.slot);
+  const st=b.status==='finished'?'Finished ★':b.status==='reading'?'Reading':'Not started';
+  detail.innerHTML=`<h2></h2><div class="small au"></div>
+   <div class="pbar"><i style="width:${Math.round(b.progress*100)}%"></i></div>
+   <div class="row"><span>Shelf</span><span class="shn"></span></div>
+   <div class="row"><span>Spot</span><span>Row ${pos.row+1} (${['top','middle','bottom'][pos.row]}), book ${pos.col+1}</span></div>
+   <div class="row"><span>Status</span><span>${st} · ${Math.round(b.progress*100)}%</span></div>
+   <div class="row"><span>Pages</span><span>${b.status==='new'?0:Math.round(b.pages*b.progress)} / ${b.pages}</span></div>
+   <div class="row"><span>Time read</span><span>${Math.floor(b.minutes/60)}h ${b.minutes%60}m</span></div>
+   <div class="row"><span>Saved quotes</span><span>${b.quotes}</span></div>
+   <div class="acts"><button class="gold" id="dopen">Jump in &amp; read</button><button id="dmove">Move to shelf…</button></div>`;
+  detail.querySelector('h2').textContent=b.title;detail.querySelector('.au').textContent=b.author;detail.querySelector('.shn').textContent=sh.name;
+  detail.querySelector('#dopen').onclick=()=>openBook(b);
+  detail.querySelector('#dmove').onclick=()=>{const others=SHELVES.filter(s=>s.id!==b.shelf&&books.filter(x=>x.shelf===s.id).length<CAP);
+    const to=others[(others.indexOf(others.find(s=>s.x>sh.x))+others.length)%others.length]||others[0];
+    b.shelf=to.id;b.added=++seq;layout();detailFor=null;showDetail(b);toast(`Moved to "${to.name}"`);};
+}
+
+/* ---------- actions ---------- */
+let toastT=0;function toast(m){toastEl.textContent=m;toastEl.style.opacity=1;clearTimeout(toastT);toastT=setTimeout(()=>toastEl.style.opacity=0,2200);}
+function openBook(b){
+  if(cut)return;const sh=shelfOf(b.shelf);
+  picked=b;showDetail(b);
+  walkTo(sh.x,()=>{cut={type:'enter',t:0,b};pl.face=1;});
+}
+let extraI=0;
+document.getElementById('add').onclick=()=>{
+  if(cut)return;const [t,a,p,sid]=EXTRA[extraI++%EXTRA.length];
+  const target=shelfOf(sid)||SHELVES[0];
+  const b=mkBook(t+(extraI>EXTRA.length?' ('+Math.ceil(extraI/EXTRA.length)+')':''),a,p,0,target);b.hidden=true;
+  books.push(b);layout();pl.carry=b;
+  toast(`Picked a PDF: "${b.title}"`);
+  walkTo(target.x,()=>{cut={type:'place',t:0,b};});
+};
+document.querySelectorAll('[data-f]').forEach(btn=>btn.onclick=()=>{filter=btn.dataset.f;document.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('on',x===btn));});
+document.getElementById('sort').onchange=e=>{
+  const before=new Map(books.map(b=>[b,bookRect(b).x]));sortMode=e.target.value;layout();
+  for(const b of books){b.dx=before.get(b);} // tween from old x to new
+  toast('Shelves re-sorted');
+};
+
+/* ---------- legend ---------- */
+const legend=document.getElementById('legend');
+function legendItem(draw,html){const c=document.createElement('canvas');c.width=22;c.height=22;draw(c.getContext('2d'));const d=document.createElement('div');d.innerHTML=html;legend.append(c,d);}
+const lr=(g,c,x,y,w,h)=>{g.fillStyle=c;g.fillRect(x,y,w,h);};
+legendItem(g=>{lr(g,'#3b2d27',2,4,18,16);lr(g,'#a8693a',3,5,16,14);lr(g,'#4a3020',5,7,12,4);lr(g,'#4a3020',5,13,12,4);lr(g,'#8e3b46',6,7,2,4);lr(g,'#2f4b7c',9,8,2,3);lr(g,'#3f7a4f',12,13,2,4);},
+  '<b>One shelf = one category.</b> Name it whatever you like (Novels, Korean Lit, Study…) and give it a wood or shop style.');
+legendItem(g=>{lr(g,'#4a3020',2,3,18,5);lr(g,'#4a3020',2,9,18,5);lr(g,'#4a3020',2,15,18,5);for(let i=0;i<4;i++){lr(g,'#c88f99',3+i*4,4,3,4);lr(g,'#7f9fbf',3+i*4,10,3,4);lr(g,'#bea577',3+i*4,16,3,4);}},
+  '<b>3 rows × 9 books</b> per shelf (27 books). When it fills up, build another shelf in an empty spot.');
+legendItem(g=>{lr(g,'#3b2d27',8,3,6,16);lr(g,'#6b4a8f',9,3,4,16);lr(g,'#f2c94e',9,3,4,1);lr(g,'#b48cf0',9,6,4,1);lr(g,'#b48cf0',9,15,4,1);},
+  '<b>Gold top</b> means finished.');
+legendItem(g=>{lr(g,'#3b2d27',8,2,6,15);lr(g,'#2f7f86',9,2,4,15);lr(g,'#c88f99',12,17,1,4);},
+  '<b>Pink ribbon</b> hanging down means you\'re in the middle of it.');
+legendItem(g=>{lr(g,'#3b2d27',7,5,8,15);lr(g,'#c7793b',8,2,6,15);lr(g,'#fdf9ed',8,1,6,1);lr(g,'rgba(0,0,0,.4)',9,17,5,1);},
+  '<b>Book peeks out</b> when you walk past or hover it. Its title card pops up.');
+legendItem(g=>{['#c88f99','#7f9fbf','#bea577','#9b74d6'].forEach((c,i)=>lr(g,c,3+i%2,16-i*4,16,3));},
+  '<b>"Want to read" pile</b> on the table for books you\'ll start next.');
+legendItem(g=>{g.strokeStyle='#6f584f';g.setLineDash([2,2]);g.strokeRect(4.5,3.5,13,16);lr(g,'#6f584f',10,8,2,6);lr(g,'#6f584f',8,10,6,2);},
+  '<b>Empty spot</b> is where you build a new shelf. More spots unlock as you level up.');
+
+/* ---------- reader preview ---------- */
+const readerEl=document.getElementById('reader');
+let rTimer=0, rSec=0;
+function showReader(b){
+  document.getElementById('rtitle').textContent=b.title+' — '+b.author;
+  const p=Math.max(b.progress,.03);document.getElementById('rprog').style.width=Math.round(p*100)+'%';
+  const left=Math.round(b.pages*(1-p)*1.4);document.getElementById('rleft').textContent=`${Math.round(p*100)}% · ~${Math.floor(left/60)}h ${left%60}m left`;
+  readerEl.hidden=false;rSec=0;clearInterval(rTimer);
+  rTimer=setInterval(()=>{rSec++;document.getElementById('rtime').textContent=String(Math.floor(rSec/60)).padStart(2,'0')+':'+String(rSec%60).padStart(2,'0');},1000);
+  document.getElementById('rclose').focus();
+}
+function closeReader(){readerEl.hidden=true;clearInterval(rTimer);cut={type:'exit',t:0};}
+document.getElementById('rclose').onclick=closeReader;
+document.querySelectorAll('[data-th]').forEach(btn=>btn.onclick=()=>{const bk=document.getElementById('rbook');bk.className='book '+(btn.dataset.th==='day'?'':btn.dataset.th);
+  document.querySelectorAll('[data-th]').forEach(x=>x.classList.toggle('on',x===btn));});
+const mini=document.getElementById('mini'),mg=mini.getContext('2d');
+function drawMini(t){ // tiny you reading + cat
+  mg.clearRect(0,0,48,32);const m=(c,x,y,w,h)=>{mg.fillStyle=c;mg.fillRect(x,y,w,h);};
+  const turn=Math.floor(t/4)%2, blink=(t%3)<.15;
+  m('#3b2d27',5,7,12,12);m('#5a3825',6,8,10,11);m('#f6d3b3',8,10,7,6);m('#5a3825',7,8,9,3);
+  if(!blink){m('#3b2d27',10,12,1,1);m('#3b2d27',13,12,1,1);}m('#e8a0a8',9,14,1,1);m('#e8a0a8',14,14,1,1);m('#c88f99',6,7,3,2);
+  m('#3b2d27',5,18,14,9);m('#9b74d6',6,19,12,7);
+  // book in hands
+  m('#3b2d27',8,20,12,7);m('#fdf9ed',9,21,5,5);m('#fdf9ed',14,21,5,5);m('#6f584f',13,21,1,5);
+  if(turn){m('#e9dccb',14,21,3,5);}
+  m('#d8c8b8',10,22,3,1);m('#d8c8b8',15,22,3,1);m('#d8c8b8',10,24,3,1);
+  // cat
+  const br=Math.sin(t*2)>0?1:0;m('#3b2d27',26,22-br,16,8+br);m('#e0a060',27,23-br,14,7+br);m('#3b2d27',36,19-br,6,5);m('#e0a060',37,20-br,4,4);
+  m('#3b2d27',37,18-br,1,1);m('#3b2d27',40,18-br,1,1);m('#9b74d6',36,24-br,5,1);m('#e0a060',24,27,4,2);
+  // heart float
+  const hp=(t%2.5)/2.5;mg.globalAlpha=1-hp;m('#c88f99',18,4-hp*4,2,2);m('#c88f99',21,4-hp*4,2,2);m('#c88f99',18,5-hp*4,5,2);m('#c88f99',19,7-hp*4,3,1);mg.globalAlpha=1;
+}
+
+/* ---------- loop ---------- */
+function resize(){
+  const cw=game.clientWidth;scale=clamp(cw/440,1,3);W=Math.min(WW,Math.round(cw/scale));
+  cv.width=W;cv.height=H;cv.style.width=W*scale+'px';cv.style.height=H*scale+'px';ctx.imageSmoothingEnabled=false;
+}
+addEventListener('resize',resize);
+buildBg();resize();
+let last=performance.now(),T=0;
+const sparks=[];
+function spark(x,y,n,col){for(let i=0;i<n;i++)sparks.push({x,y,vx:(Math.random()-.5)*60,vy:-20-Math.random()*50,l:.6+Math.random()*.5,c:col||['#f2c94e','#fdf9ed','#c88f99'][i%3]});}
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;
+  // input
+  let dir=0;
+  if(!cut){if(keys['arrowleft']||keys['a']||hold.l)dir=-1;if(keys['arrowright']||keys['d']||hold.r)dir=1;}
+  if(dir){pl.target=null;pl.onArrive=null;}
+  else if(pl.target!=null){const d=pl.target-pl.x;if(Math.abs(d)<1.5){pl.x=pl.target;pl.target=null;const cb=pl.onArrive;pl.onArrive=null;cb&&cb();}else dir=Math.sign(d);}
+  pl.moving=!!dir;if(dir){pl.face=dir;pl.x=clamp(pl.x+dir*72*dt,24,WW-30);pl.walkT+=dt;}
+  if(pl.jump>0){pl.vy+=380*dt;pl.jump-=pl.vy*dt;if(pl.jump<=0){pl.jump=0;pl.vy=0;}}
+  camX+=(clamp(pl.x-W/2,0,WW-W)-camX)*Math.min(1,dt*6);
+  // hover / selection
+  hoverBook=(mouse&&!cut)?bookAt(mouse.x,mouse.y):null;
+  cv.style.cursor=hoverBook?'pointer':'default';
+  const sel=cut&&cut.b?cut.b:selected();
+  for(const b of books){const tgt=(b===sel||b===picked&&!sel)?1:0;b.pull+=(tgt-b.pull)*Math.min(1,dt*10);
+    if(b.dx!=null){const p=slotPos(shelfOf(b.shelf),b.slot).x;b.dx+=(p-b.dx)*Math.min(1,dt*6);if(Math.abs(p-b.dx)<.3)b.dx=null;}}
+  if(sel&&!cut)showDetail(sel);
+  // draw
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
+  ctx.translate(-Math.round(camX),0);
+  ctx.drawImage(bg,0,0);
+  drawRain(dt);drawFire(T);drawPile();
+  for(const sh of SHELVES)drawShelf(sh,T);
+  for(const b of books){if(b.hidden)continue;const match=filter==='all'||b.status===filter;drawBook(b,match?1:.22);}
+  for(const sp of EMPTY_SPOTS){ctx.globalAlpha=.45+Math.sin(T*3)*.2;ctx.strokeStyle='#fdf9ed';ctx.setLineDash([3,3]);ctx.strokeRect(sp.x-21.5,GY-SH+.5,43,SH-1);ctx.setLineDash([]);
+    R('#fdf9ed',sp.x-1,GY-36,2,10);R('#fdf9ed',sp.x-5,GY-32,10,2);ctx.globalAlpha=1;}
+  drawCat(T);
+  // player
+  if(!pl.hide){const f=pl.moving?Math.floor(pl.walkT*8)%4:0;const spr=(pl.carry?HOLD:FR)[f];
+    const s=pl.scale, px=Math.round(pl.x), py=GY-Math.round(pl.jump);
+    ctx.save();ctx.translate(px,py);if(pl.face<0)ctx.scale(-1,1);ctx.scale(s,s);ctx.drawImage(spr,-9,-28);ctx.restore();
+    if(pl.carry){const c=pl.carry.color;R('#3b2d27',px-5,py-36,11,7);R(c,px-4,py-35,9,5);R(shade(c,.5),px-4,py-33,9,1);}
+    if(!cut&&nearShelf()&&!pl.moving){ctx.globalAlpha=.85;R('#fdf9ed',px-1,py-33+Math.round(Math.sin(T*5)),2,2);ctx.globalAlpha=1;}
+  }
+  // light
+  ctx.globalCompositeOperation='lighter';
+  const glow=(x,y,r,c,a)=>{const gr=ctx.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,c.replace('A',a));gr.addColorStop(1,c.replace('A',0));ctx.fillStyle=gr;ctx.fillRect(x-r,y-r,r*2,r*2);};
+  glow(690,GY-16,70,'rgba(255,140,60,A)',.22+Math.sin(T*8)*.03);glow(308,60,40,'rgba(120,150,220,A)',.12);glow(446,GY-80,40,'rgba(180,140,255,A)',.15+Math.sin(T*4)*.05);
+  ctx.globalCompositeOperation='source-over';
+  for(const d of dust){d.y-=d.v*dt*.3;d.x+=Math.sin(T+d.p)*.1;if(d.y<14)d.y=150;ctx.globalAlpha=.25+Math.sin(T*2+d.p)*.15;R('#fdf9ed',d.x,d.y,1,1);}ctx.globalAlpha=1;
+  for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.l-=dt;s.vy+=120*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;if(s.l<=0){sparks.splice(i,1);continue;}R(s.c,s.x,s.y,1,1);}
+  // cutscenes
+  ctx.setTransform(1,0,0,1,0,0);
+  if(cut)runCut(dt);
+  placeLabels();updateTip(hoverBook||(!cut&&!pl.moving?sel:null));
+  if(document.hidden===false&&!readerEl.hidden)drawMini(T);
+  requestAnimationFrame(frame);
+}
+function runCut(dt){
+  cut.t+=dt;const t=cut.t;
+  if(cut.type==='place'){
+    const b=cut.b, r=bookRect(b), sx=pl.x, sy=GY-34, k=Math.min(1,t/.55);
+    pl.carry=null;
+    const x=sx+(r.x+2-sx)*k, y=sy+(r.y+r.h/2-sy)*k-Math.sin(k*Math.PI)*22;
+    if(k<1){ctx.translate(-Math.round(camX),0);R('#3b2d27',x-3,y-6,6,12);R(b.color,x-2,y-5,4,10);ctx.setTransform(1,0,0,1,0,0);}
+    else{b.hidden=false;spark(r.x+2,r.y,18);toast(`"${b.title}" is on the ${shelfOf(b.shelf).name} shelf`);picked=b;showDetail(b);cut=null;}
+    return;
+  }
+  if(cut.type==='enter'){
+    const b=cut.b, r=bookRect(b);const sx0=(r.x+2-camX), sy0=r.y+r.h/2;
+    const k=clamp((t-.25)/.7,0,1), e=1-Math.pow(1-k,3);
+    const cx=W/2, cy=H/2-6; const x=sx0+(cx-sx0)*e, y=sy0+(cy-sy0)*e, s=1+e*6;
+    ctx.globalAlpha=e*.55;R('#1a1210',0,0,W,H);ctx.globalAlpha=1;
+    if(k<.85){const w=4*s*1.6,h=13*s/1.3+6;R('#3b2d27',x-w/2-1,y-h/2-1,w+2,h+2);R(b.color,x-w/2,y-h/2,w,h);R(shade(b.color,.5),x-w/2,y-h/2+3,w,2);R(shade(b.color,.5),x-w/2,y+h/2-5,w,2);}
+    else{const ow=60,oh=40;R('#3b2d27',cx-ow/2-2,cy-oh/2-2,ow+4,oh+4);R(b.color,cx-ow/2-1,cy-oh/2-1,ow+2,oh+2);R('#fdf9ed',cx-ow/2+2,cy-oh/2+1,ow/2-3,oh-3);R('#fdf9ed',cx+1,cy-oh/2+1,ow/2-3,oh-3);
+      R('#d8c8b8',cx-ow/2+6,cy-10,18,2);R('#d8c8b8',cx+6,cy-10,18,2);R('#d8c8b8',cx-ow/2+6,cy-5,14,2);R('#d8c8b8',cx+6,cy-5,15,2);}
+    // character jumps in and shrinks
+    const j=clamp((t-.95)/.55,0,1);
+    if(t>.95){pl.hide=true;const px=(pl.x-camX)+(cx-(pl.x-camX))*j, py=GY+(cy-GY)*j-Math.sin(j*Math.PI)*40, sc=1-j*.85;
+      if(j<1){ctx.save();ctx.translate(px,py);ctx.scale(sc,sc);ctx.drawImage(HOLD[0],-9,-28);ctx.restore();}
+      if(j>.9&&!cut.sp){cut.sp=1;spark(cx+camX,cy,30);}}
+    if(t>1.5){const f=clamp((t-1.5)/.3,0,1);ctx.globalAlpha=f;R('#fdf9ed',0,0,W,H);ctx.globalAlpha=1;}
+    if(t>1.85){cut=null;pl.hide=false;showReader(b);}
+    return;
+  }
+  if(cut.type==='exit'){
+    const f=1-clamp(t/.35,0,1);ctx.globalAlpha=f;R('#fdf9ed',0,0,W,H);ctx.globalAlpha=1;
+    pl.scale=clamp(.3+t*2,0,1);if(t>.05&&!cut.sp){cut.sp=1;spark(pl.x,GY-14,20);}
+    if(t>.4){pl.scale=1;cut=null;}
+  }
+}
+showDetail(books.find(b=>b.title==='Almond'));
+requestAnimationFrame(frame);
+})();
+</script>

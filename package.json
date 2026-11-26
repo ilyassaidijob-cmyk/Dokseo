@@ -1,0 +1,21 @@
+{
+  "name": "dokseo",
+  "productName": "Dokseo",
+  "version": "1.0.0",
+  "description": "A cozy pixel library where you read your own PDF books.",
+  "main": "electron/main.js",
+  "author": "Dokseo",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:web": "python3 tools/build_web.py",
+    "pack:win": "electron-packager . Dokseo --platform=win32 --arch=x64 --out=dist --overwrite --icon=app/icon.ico --app-copyright=Dokseo --win32metadata.ProductName=Dokseo --win32metadata.FileDescription=Dokseo --ignore=^/prototype --ignore=^/dist --ignore=^/tools --ignore=^/test --ignore=^/dist-web"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "@fontsource/pixelify-sans": "^5.3.0",
+    "electron": "^45.5.0",
+    "pdfjs-dist": "^3.11.174"
+  }
+}

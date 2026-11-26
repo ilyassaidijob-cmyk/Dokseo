@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dokseo</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-screen="menu">
+<canvas id="world"></canvas>
+<div id="labels"></div>
+<div id="prompt"></div>
+<div id="tip"></div>
+
+<div id="hud" class="hidden">
+  <div class="hud-l pix">
+    <canvas id="hud-face" width="22" height="20"></canvas>
+    <div class="who"><b id="hud-name"></b><div class="xp"><i id="hud-xp"></i></div><span id="hud-lv" class="small"></span></div>
+    <div class="hud-coins" id="hud-coins" title="Coins. You earn 1 for every minute of reading."><img id="hud-coin-ic" alt=""><b>0</b></div>
+    <div class="hud-streak"><span aria-hidden="true">🔥</span><b id="hud-streak">0</b></div>
+    <div class="hud-cat hidden" id="hud-cat"><canvas width="34" height="28"></canvas><div><span class="nm"></span><div class="bar"><i></i></div></div></div>
+  </div>
+  <div class="hud-r">
+    <button class="btn gold" id="hud-add" title="Add PDF books (N)">+ Add book</button>
+    <button class="btn" id="hud-view" title="Filter and sort your shelves">View</button>
+    <button class="btn" id="hud-quests" title="Daily quests">Quests<span class="badge hidden"></span></button>
+    <button class="btn" id="hud-shop" title="Dubu's shop">Shop</button>
+    <button class="btn" id="hud-stats" title="Your reading stats">Stats</button>
+    <button class="btn" id="hud-menu" title="Menu (Esc)">Menu</button>
+  </div>
+  <div id="room-banner"></div>
+  <div id="hud-help">Arrows or WASD walk · E interact · N add a book · Space hop · Esc menu</div>
+</div>
+<div id="touch" class="hidden"><button id="t-up" aria-label="Walk up">▲</button><button id="t-left" aria-label="Walk left">◀</button><button id="t-down" aria-label="Walk down">▼</button><button id="t-right" aria-label="Walk right">▶</button><button id="t-act" aria-label="Interact">E</button></div>
+
+<div id="screen-menu" class="screen">
+  <div class="menu-box">
+    <img class="logo" src="logo.png" alt="Dokseo">
+    <div class="tagline">a cozy pixel library for your books</div>
+    <button class="btn big gold" id="m-start">Start</button>
+    <button class="btn big" id="m-stats">Stats</button>
+    <button class="btn big" id="m-settings">Settings</button>
+    <div class="m-streak" id="m-streak"></div>
+    <div class="small dim" id="m-foot"></div>
+  </div>
+</div>
+<div id="screen-creator" class="screen hidden"></div>
+<div id="screen-stats" class="screen hidden"></div>
+<div id="screen-settings" class="screen hidden"></div>
+<div id="screen-shop" class="screen hidden"></div>
+
+<div id="reader" class="hidden"></div>
+<div id="tutorial" class="hidden"></div>
+<div id="popover" class="pix hidden"></div>
+<div id="ctxmenu" class="pix hidden"></div>
+<div id="modal-root"></div>
+<div id="toasts"></div>
+<canvas id="fx"></canvas>
+<div id="drop-hint">Drop your PDF files to add them to a shelf</div>
+<input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/items.js"></script>
+<script src="js/world.js"></script>
+<script src="js/reader.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
